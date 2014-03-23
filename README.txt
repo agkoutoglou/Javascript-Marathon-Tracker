@@ -1,1 +1,1 @@
-This is an example using the Geolocation API in order to implement the marathon tracker application to javascript, so it will rub via browser on any platform available to support the newests browsers.
+This is an example using the Geolocation API in order to implement the marathon tracker application to javascript, so it will run via browser on any platform available to support the newests browsers.
