@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<style>
+#main,#results {
+	text-align: left;
+}
+
+#currentLat,#currentLon,#distance,#averagespeed,#speed,#calories {
+	font-weight: bold;
+	display: inline;
+}
+</style>
+
+<script type="text/javascript">
+	var currentlatitude, currentlongitude, aspeed = new Array(), index = 0;
+
+	function watchLocation(successCallback, errorCallback) { // Κύρια μέθοδος εντοπισμού θέσης μέσω IP και δικτύων κινητής τηλεφωνίας
+		successCallback = successCallback || function() {
+		};
+		errorCallback = errorCallback || function() {
+		};
+
+		// Δοκιμή αν υποστηρίζεται το ΑΡΙ HTML5-spec geolocation.
+		var geolocation = navigator.geolocation;
+
+		if (geolocation) {
+			// Δουλεύει και έχουμε ενεργοποίηση υπηρεσίας.
+			try {
+				function handleSuccess(position) {
+					successCallback(position.coords);
+				}
+
+				geolocation.watchPosition(handleSuccess, errorCallback, {
+					enableHighAccuracy : true,
+					maximumAge : 5000
+				// 5 δευτερόλεπτα αναμονή.
+				});
+			} catch (err) {
+				errorCallback();
+			}
+		} else {
+			errorCallback();
+		}
+	}
+
+	function init() {
+		var startLat = document.getElementById('startLat');
+		var startLon = document.getElementById('startLon');
+
+		watchLocation( // Σε κάθε αλλαγή της τοποθεσίας μας, θα εκετελείται ο παρακάτω κώδικας
+					   // όπου θα ενημερώνει τα πεδία των τιμών της ταχύτητας, θερμιδών κτλ
+				function(coords) {
+					currentlatitude = coords.latitude;
+					currentlongitude = coords.longitude;
+					document.getElementById('currentLat').innerHTML = coords.latitude;
+					document.getElementById('currentLon').innerHTML = coords.longitude;
+
+					if (startLat.value != '' && startLon.value != '') { // Απαραίτητη συνθήκη για έλεγχο αν τα πεδία αρχικής τοποθεσίας
+																		// είναι κενά
+						var distance = Haversine(startLat.value,
+								startLon.value, coords.latitude,
+								coords.longitude);
+						document.getElementById('distance').innerHTML = distance;
+						document.getElementById('speed').innerHTML = Speed(distance);
+						document.getElementById('averagespeed').innerHTML = Aspeed();
+						document.getElementById('calories').innerHTML = Calories(distance);
+					}
+				}, function() {
+					document.getElementById('currentLat').innerHTML = 'Error';
+					document.getElementById('currentLon').innerHTML = 'Error';
+				});
+	}
+
+	function Speed(distance) { // Μέθοδος εύρεσης ταχύτητας βάση της διανυόμενης απόστασης
+		var speed = parseFloat(distance) / 3600;
+		aspeed[index] = speed;
+		index++;
+		return speed;
+	}
+	function setStartingPoint() { // Μέθοδος ενημέρωσης των πεδίων αρχικής τοποθεσίας
+		var startLat = document.getElementById('startLat');
+		var startLon = document.getElementById('startLon');
+		startLat.value = currentlatitude;
+		startLon.value = currentlongitude;
+	}
+
+	function deg2rad(degrees) { // Μέθοδος μετατροπής μοιρών σε ακτίνια
+		radians = degrees * (Math.PI / 180);
+		return radians;
+	}
+
+	function Haversine(lat1, lon1, lat2, lon2) { // Μέθοδος υπολογισμού απόστασης μεταξυ δύο ζεύγων συνταταγμένων
+		deltaLat = lat2 - lat1;
+		deltaLon = lon2 - lon1;
+		earthRadius = 6371; // Διάμετρος της Γής.
+		alpha = deltaLat / 2;
+		beta = deltaLon / 2;
+		a = Math.sin(deg2rad(alpha)) * Math.sin(deg2rad(alpha))
+				+ Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2))
+				* Math.sin(deg2rad(beta)) * Math.sin(deg2rad(beta));
+		c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+		distance = earthRadius * c;
+		return distance.toFixed(2);
+	}
+
+	function Calories(distance) { // Μέθοδος υπολογισμού θερμιδών σύμφωνα με τον αλγόριθμο που περιγράφεται στο US Patent 6013009
+		var weight = document.getElementById('weight');
+		if (weight.value != '') {
+			var D = 0.00801 * Math.pow((weight.value * 0.453592 / 154), 0.425)
+					/ (weight.value * 0.453592);
+			var A = 0.0395;
+			var B = 0.00327;
+			var C = 0.000455;
+			var K = 1;
+			var speed = (distance / 3600) * 0.62137;
+			var calories = A
+					+ ((B * speed) + ((C * Math.pow(speed, 2)) + K
+							* (D * Math.pow(speed, 3))));
+			return calories;
+		}
+	}
+
+	function Aspeed() { // Μέθοδος υπολογισμού μέσης ταχύτητας
+		var speedsum = 0;
+		for (var i = 0; i < aspeed.length; i++) {
+			speedsum += aspeed[i];
+		}
+		return speedsum / aspeed.length;
+	}
+</script>
+</head>
+
+<body onload="init()"> <!-- Με το που προβάλλεται η ιστοσελίδα, η μέθοδος init() φορτώνεται και εκτελείται -->
+
+	Starting Latitude:
+	<input type="text" name="startLat" id="startLat"></input>
+	</br> Starting Longitude:
+	<input type="text" name="startLon" id="startLon"></input>
+
+	<div id="main">
+		Your Latitude is:
+		<div id="currentLat"></div>
+		Your Longitude is:
+		<div id="currentLon"></div>
+		</br>
+	</div>
+	<hr></hr>
+	Enter your weight (in Kg):
+	<input type="text" name="weight" id="weight"></input>
+	<hr></hr>
+	<button onclick="setStartingPoint()">Set starting point!</button>
+	<hr></hr>
+	<div id="results">
+		Distance:
+		<div id="distance"></div>
+		</br> Speed (meters/hour):
+		<div id="speed"></div>
+		</br> Average Speed:
+		<div id="averagespeed"></div>
+		</br> Calories:
+		<div id="calories"></div>
+		</br>
+	</div>
+</body>
+</html>
